@@ -289,7 +289,7 @@ export default function Clientes() {
               <div className={styles.anivKpis}>
                 <div className={styles.anivKpi}>
                   <span className={styles.anivKpiNum}>
-                    {(data.aniversariantes ?? []).filter(a => a.esteMes).length}
+                    {(data.aniversariantes ?? []).filter(a => a.hoje || a.proximo).length}
                   </span>
                   <span className={styles.anivKpiLabel}>este mês</span>
                 </div>
@@ -301,7 +301,7 @@ export default function Clientes() {
                 </div>
                 <div className={styles.anivKpi}>
                   <span className={styles.anivKpiNum}>
-                    {(data.aniversariantes ?? []).filter(a => a.diasAte <= 7).length}
+                    {(data.aniversariantes ?? []).filter(a => a.proximo).length}
                   </span>
                   <span className={styles.anivKpiLabel}>próximos 7 dias</span>
                 </div>
@@ -314,7 +314,7 @@ export default function Clientes() {
                 ) : (
                   <div className={styles.anivGrid}>
                     {(data.aniversariantes ?? []).map((a, i) => (
-                      <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.esteMes ? styles.anivMes : ''}`}>
+                      <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.proximo ? styles.anivMes : ''}`}>
                         <div className={styles.anivAvatar}>
                           {a.nome.substring(0,2).toUpperCase()}
                         </div>
