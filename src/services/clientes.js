@@ -1,6 +1,7 @@
 import { fetchSheet, parseBRL, parseDate, isDateRow } from './sheets.js'
 
-const GID_CLIENTES = import.meta.env.VITE_GID_CLIENTES
+const GID_CLIENTES      = import.meta.env.VITE_GID_CLIENTES
+const GID_ANIVERSARIOS  = import.meta.env.VITE_GID_ANIVERSARIOS
 
 function parseClientesRows(rows) {
   const result = []
@@ -30,7 +31,10 @@ function formatData(d) {
 }
 
 export async function getClientes(inicio, fim) {
-  const rows  = await fetchSheet(GID_CLIENTES)
+  const [rows, rowsAniv] = await Promise.all([
+    fetchSheet(GID_CLIENTES),
+    fetchSheet(GID_ANIVERSARIOS),
+  ])
   const todos = parseClientesRows(rows)
 
   if (todos.length === 0) {
@@ -123,5 +127,38 @@ export async function getClientes(inicio, fim) {
   const totalUnicos        = Object.keys(periodoMap).length
   const ticketMedioCliente = totalUnicos > 0 ? totalCompras / totalUnicos : 0
 
-  return { ranking, inativos, evolucaoMes, faixas, recorrencia, totalUnicos, totalCompras, ticketMedioCliente }
+  // Aniversariantes — formato: DD/MM | Nome
+  const hojeAniv = new Date()
+  const mesAtual = hojeAniv.getMonth() + 1
+  const diaAtual = hojeAniv.getDate()
+
+  const aniversariantes = []
+  for (const row of rowsAniv) {
+    const col0 = row[0], col1 = row[1]
+    if (!col0 || col0.startsWith('aniversario') || col0.startsWith('Data')) continue
+    const parts = col0.trim().split('/')
+    if (parts.length < 2) continue
+    const dia = parseInt(parts[0])
+    const mes = parseInt(parts[1])
+    if (!dia || !mes) continue
+    // Calcula dias até o aniversário
+    const anivEsteAno = new Date(hojeAniv.getFullYear(), mes - 1, dia)
+    if (anivEsteAno < new Date(hojeAniv.getFullYear(), hojeAniv.getMonth(), hojeAniv.getDate())) {
+      anivEsteAno.setFullYear(hojeAniv.getFullYear() + 1)
+    }
+    const diasAte = Math.ceil((anivEsteAno - hojeAniv) / 86400000)
+    aniversariantes.push({
+      nome:    col1?.trim() ?? '',
+      data:    col0.trim(),
+      dia,
+      mes,
+      diasAte,
+      hoje:    dia === diaAtual && mes === mesAtual,
+      esteMes: mes === mesAtual,
+    })
+  }
+  // Ordena: hoje primeiro, depois por proximidade
+  aniversariantes.sort((a, b) => a.diasAte - b.diasAte)
+
+  return { ranking, inativos, evolucaoMes, faixas, recorrencia, aniversariantes, totalUnicos, totalCompras, ticketMedioCliente }
 }
