@@ -5,6 +5,8 @@ const GID = {
   pagamentos:  import.meta.env.VITE_GID_PAGAMENTOS,
   produtos:    import.meta.env.VITE_GID_PRODUTOS,
   clientes:    import.meta.env.VITE_GID_CLIENTES,
+  horarios:    import.meta.env.VITE_GID_HORARIOS,
+  canais:      import.meta.env.VITE_GID_CANAIS,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,11 +104,13 @@ function parseClientes(rows) {
 // FUNÇÃO PRINCIPAL — Dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getDashboard(inicio, fim) {
-  const [rowsFat, rowsPag, rowsProd, rowsCli] = await Promise.all([
+  const [rowsFat, rowsPag, rowsProd, rowsCli, rowsHor, rowsCan] = await Promise.all([
     fetchSheet(GID.faturamento),
     fetchSheet(GID.pagamentos),
     fetchSheet(GID.produtos),
     fetchSheet(GID.clientes),
+    fetchSheet(GID.horarios),
+    fetchSheet(GID.canais),
   ])
 
   const faturamentos = parseFaturamento(rowsFat)
@@ -156,15 +160,64 @@ export async function getDashboard(inicio, fim) {
     .filter(p => p.value > 0)
     .map(p => ({ label: p.label, value: Math.round(p.value), delta: null }))
 
-  // ── Movimento por dia ──────────────────────────────────────────────────────
-  const dailyMap = {}
-  fatPeriodo.forEach(r => {
-    const label = `${String(r.data.day).padStart(2,'0')}/${String(r.data.month).padStart(2,'0')}`
-    dailyMap[label] = (dailyMap[label] ?? 0) + r.total
-  })
-  const salesByHour = Object.entries(dailyMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([hour, value]) => ({ hour, value }))
+  // ── Canais de venda — aba dedicada ────────────────────────────────────────
+  // Venda | Atendimento | Vendedor | Data/Hora | Taxa | Valor | Tipo
+  // Data/Hora formato: "20/03/2023 - 17:27"
+  const canaisMap = {}
+  for (const row of rowsCan) {
+    const col0 = row[0]
+    if (!col0 || col0.startsWith('Venda') || col0.startsWith('Total')) continue
+    const dataHora = row[3]
+    if (!dataHora) continue
+    const datePart = dataHora.split(' - ')[0]?.trim()
+    const dataVenda = parseDate(datePart)
+    if (!dataVenda) continue
+    const msV  = new Date(dataVenda.year, dataVenda.month - 1, dataVenda.day).getTime()
+    const msIni = new Date(inicio.year, inicio.month - 1, inicio.day).getTime()
+    const msFim = new Date(fim.year,    fim.month - 1,    fim.day).getTime()
+    if (msV < msIni || msV > msFim) continue
+    const tipo  = row[6]?.trim() || 'Outros'
+    const valor = parseBRL(row[5])
+    if (!canaisMap[tipo]) canaisMap[tipo] = { vendas: 0, total: 0 }
+    canaisMap[tipo].vendas++
+    canaisMap[tipo].total += valor
+  }
+  const salesChannels = Object.entries(canaisMap)
+    .sort(([, a], [, b]) => b.total - a.total)
+    .map(([label, v]) => ({ label, value: Math.round(v.total), vendas: v.vendas, delta: null }))
+
+  // ── Horários de venda — aba dedicada ─────────────────────────────────────
+  // Formato: Data | Horario | Vendas | Ticket Médio | Devolução | Valor Total
+  // Linhas sem data (col0 vazio) = totais gerais, ignora
+  // Linhas com data = detalhamento por dia (filtra por período)
+  const horariosMap = {}
+  for (const row of rowsHor) {
+    const col0 = row[0]
+    const col1 = row[1]
+    if (!col1) continue
+    if (col0.startsWith('Data') || col0.startsWith('Total')) continue
+    // Ignora linhas sem data (totais consolidados sem período)
+    if (!col0 || !isDateRow(col0)) continue
+    // Filtra pelo período selecionado
+    const dataHor = parseDate(col0)
+    if (!dataHor) continue
+    const msHor = new Date(dataHor.year, dataHor.month - 1, dataHor.day).getTime()
+    const msIni = new Date(inicio.year, inicio.month - 1, inicio.day).getTime()
+    const msFim = new Date(fim.year,    fim.month - 1,    fim.day).getTime()
+    if (msHor < msIni || msHor > msFim) continue
+    // Extrai hora do formato "07:00:00 - 07:59:59"
+    const match = col1.match(/^(\d{2})/)
+    if (!match) continue
+    const hora = `${match[1]}h`
+    const vendas = parseInt(row[2]) || 0
+    const total  = parseBRL(row[5])
+    if (!horariosMap[hora]) horariosMap[hora] = { vendas: 0, total: 0 }
+    horariosMap[hora].vendas += vendas
+    horariosMap[hora].total  += total
+  }
+  const salesByHour = Object.entries(horariosMap)
+    .sort(([a], [b]) => parseInt(a) - parseInt(b))
+    .map(([hour, v]) => ({ hour, value: v.total, vendas: v.vendas }))
 
   // ── Vendas por dia da semana ───────────────────────────────────────────────
   const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -202,7 +255,7 @@ export async function getDashboard(inicio, fim) {
       atendimentos:    { value: totalVendas,  delta: null,             deltaAbs: null },
       taxaAtendimento: { value: +(faturamento / diasPeriodo).toFixed(2), delta: null, deltaAbs: null },
     },
-    payments, channels, salesByHour, salesByDay, topProducts, topClients,
+    payments, channels, salesChannels, salesByHour, salesByDay, topProducts, topClients,
   }
 }
 
