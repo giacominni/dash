@@ -116,7 +116,7 @@ export default function Dashboard() {
           {/* Pagamentos · Canais */}
           <div className={styles.row3}>
             <PaymentMethods data={data.payments} />
-            <SalesChannels  data={data.channels} />
+            <SalesChannels  data={data.salesChannels} />
           </div>
 
           {/* Gráficos */}
