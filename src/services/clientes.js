@@ -158,7 +158,17 @@ export async function getClientes(inicio, fim) {
     })
   }
   // Ordena: hoje primeiro, depois por proximidade
-  aniversariantes.sort((a, b) => a.diasAte - b.diasAte)
+  // Deduplicação final por nome (garante sem duplicados mesmo se parser falhar)
+  const nomesAniv = new Set()
+  const aniversariantesMes = aniversariantes
+    .filter(a => {
+      if (!a.esteMes) return false
+      const key = a.nome.trim().toUpperCase()
+      if (nomesAniv.has(key)) return false
+      nomesAniv.add(key)
+      return true
+    })
+    .sort((a, b) => a.dia - b.dia)
 
-  return { ranking, inativos, evolucaoMes, faixas, recorrencia, aniversariantes, totalUnicos, totalCompras, ticketMedioCliente }
+  return { ranking, inativos, evolucaoMes, faixas, recorrencia, aniversariantes: aniversariantesMes, totalAniversariantes: aniversariantes.length, totalUnicos, totalCompras, ticketMedioCliente }
 }
