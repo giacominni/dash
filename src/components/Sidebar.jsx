@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, DollarSign, Users, ShoppingBag } from 'lucide-react'
+import { LayoutDashboard, DollarSign, Users, ShoppingBag, LogOut } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import styles from './Sidebar.module.css'
 
 const NAV = [
@@ -10,6 +11,8 @@ const NAV = [
 ]
 
 export default function Sidebar() {
+  const { user, logout } = useAuth()
+
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
@@ -27,11 +30,16 @@ export default function Sidebar() {
         ))}
       </nav>
       <div className={styles.user}>
-        <div className={styles.avatar}>VM</div>
-        <div>
-          <p className={styles.userName}>Vitória Moss</p>
+        <div className={styles.avatar}>
+          {user?.email?.substring(0,2).toUpperCase() ?? 'VM'}
+        </div>
+        <div className={styles.userInfo}>
+          <p className={styles.userName}>{user?.email ?? 'Usuário'}</p>
           <p className={styles.userRole}>Administrador</p>
         </div>
+        <button className={styles.logoutBtn} onClick={logout} title="Sair">
+          <LogOut size={14} />
+        </button>
       </div>
     </aside>
   )
