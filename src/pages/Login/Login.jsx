@@ -33,7 +33,7 @@ export default function Login() {
         <div className={styles.leftInner}>
           <div className={styles.brand}>
             <p className={styles.brandEyebrow}>Painel de Gestão</p>
-            <h1 className={styles.brandName}>Use Mais<br />Soluções</h1>
+            <h1 className={styles.brandName}>Sul Mídia<br />Software</h1>
             <p className={styles.brandSub}>até VM</p>
           </div>
           <div className={styles.decoration}>
