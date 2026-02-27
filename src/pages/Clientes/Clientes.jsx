@@ -284,17 +284,61 @@ export default function Clientes() {
 
           {/* ── Aniversariantes ──────────────────────────────────────────── */}
           {aba === 'aniversariantes' && (
-            <div className={styles.card}>
-              <div className={styles.anivEmpty}>
-                <Gift size={44} strokeWidth={1.2} />
-                <h3>Aniversariantes do mês</h3>
-                <p>Esta aba está pronta e aguardando os dados de aniversário.</p>
+            <>
+              {/* KPI aniversários do mês */}
+              <div className={styles.anivKpis}>
+                <div className={styles.anivKpi}>
+                  <span className={styles.anivKpiNum}>
+                    {(data.aniversariantes ?? []).filter(a => a.esteMes).length}
+                  </span>
+                  <span className={styles.anivKpiLabel}>este mês</span>
+                </div>
+                <div className={styles.anivKpi}>
+                  <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
+                    {(data.aniversariantes ?? []).filter(a => a.hoje).length}
+                  </span>
+                  <span className={styles.anivKpiLabel}>hoje</span>
+                </div>
+                <div className={styles.anivKpi}>
+                  <span className={styles.anivKpiNum}>
+                    {(data.aniversariantes ?? []).filter(a => a.diasAte <= 7).length}
+                  </span>
+                  <span className={styles.anivKpiLabel}>próximos 7 dias</span>
+                </div>
               </div>
-            </div>
+
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>Aniversariantes</h3>
+                {(data.aniversariantes ?? []).length === 0 ? (
+                  <p className={styles.empty}>Nenhum aniversariante encontrado</p>
+                ) : (
+                  <div className={styles.anivGrid}>
+                    {(data.aniversariantes ?? []).map((a, i) => (
+                      <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.esteMes ? styles.anivMes : ''}`}>
+                        <div className={styles.anivAvatar}>
+                          {a.nome.substring(0,2).toUpperCase()}
+                        </div>
+                        <div className={styles.anivInfo}>
+                          <p className={styles.anivNome}>{a.nome}</p>
+                          <p className={styles.anivData}>{a.data}</p>
+                        </div>
+                        <div className={styles.anivBadge}>
+                          {a.hoje
+                            ? <span className={styles.badgeHoje}>Hoje!</span>
+                            : a.diasAte <= 7
+                            ? <span className={styles.badgeProximo}>em {a.diasAte}d</span>
+                            : <span className={styles.badgeFuturo}>em {a.diasAte}d</span>
+                          }
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </>
       )}
     </div>
   )
-
 }
