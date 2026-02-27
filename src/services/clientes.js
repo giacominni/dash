@@ -1,7 +1,7 @@
 import { fetchSheet, parseBRL, parseDate, isDateRow } from './sheets.js'
 
-const GID_CLIENTES      = import.meta.env.VITE_GID_CLIENTES
-const GID_ANIVERSARIOS  = import.meta.env.VITE_GID_ANIVERSARIOS
+const GID_CLIENTES     = import.meta.env.VITE_GID_CLIENTES
+const GID_ANIVERSARIOS = import.meta.env.VITE_GID_ANIVERSARIOS
 
 function parseClientesRows(rows) {
   const result = []
@@ -9,12 +9,10 @@ function parseClientesRows(rows) {
     const col0 = row[0]
     if (!col0 || col0.startsWith('Cliente') || col0.startsWith('Total')) continue
     if (col0.toLowerCase().includes('consumidor final')) continue
-
     let data = null, totalCol = 3
     if (row[2] && isDateRow(row[2]))      { data = parseDate(row[2]); totalCol = 3  }
     else if (row[3] && isDateRow(row[3])) { data = parseDate(row[3]); totalCol = 10 }
     if (!data) continue
-
     result.push({ nome: col0, venda: row[1], data, total: parseBRL(row[totalCol]) })
   }
   return result
@@ -27,7 +25,12 @@ function porPeriodo(arr, inicio, fim) {
 }
 
 function formatData(d) {
-  return `${String(d.day).padStart(2,'0')}/${String(d.month).padStart(2,'0')}/${d.year}`
+  return String(d.day).padStart(2,'0') + '/' + String(d.month).padStart(2,'0') + '/' + d.year
+}
+
+const MESES_EXT = {
+  'janeiro':1,'fevereiro':2,'março':3,'abril':4,'maio':5,'junho':6,
+  'julho':7,'agosto':8,'setembro':9,'outubro':10,'novembro':11,'dezembro':12
 }
 
 export async function getClientes(inicio, fim) {
@@ -39,12 +42,11 @@ export async function getClientes(inicio, fim) {
 
   if (todos.length === 0) {
     return { ranking: [], inativos: [], evolucaoMes: [], faixas: [], recorrencia: [],
-             totalUnicos: 0, totalCompras: 0, ticketMedioCliente: 0 }
+             aniversariantes: [], totalUnicos: 0, totalCompras: 0, ticketMedioCliente: 0 }
   }
 
   const periodo = porPeriodo(todos, inicio, fim)
 
-  // Histórico completo por cliente
   const historicoMap = {}
   todos.forEach(r => {
     if (!historicoMap[r.nome]) historicoMap[r.nome] = { compras: 0, total: 0, ultimaData: null }
@@ -55,7 +57,6 @@ export async function getClientes(inicio, fim) {
       historicoMap[r.nome].ultimaData = t
   })
 
-  // Ranking por período
   const periodoMap = {}
   periodo.forEach(r => {
     if (!periodoMap[r.nome]) periodoMap[r.nome] = { compras: 0, total: 0 }
@@ -76,7 +77,6 @@ export async function getClientes(inicio, fim) {
       }
     })
 
-  // Inativos +60 dias
   const inativos = Object.entries(historicoMap)
     .filter(([, c]) => c.ultimaData && (hoje - c.ultimaData) / 86400000 > 60)
     .sort(([, a], [, b]) => a.ultimaData - b.ultimaData)
@@ -87,10 +87,9 @@ export async function getClientes(inicio, fim) {
       ultimaCompra: formatData({ day: c.ultimaData.getDate(), month: c.ultimaData.getMonth() + 1, year: c.ultimaData.getFullYear() }),
     }))
 
-  // Evolução por mês (período selecionado)
   const evolMap = {}
   periodo.forEach(r => {
-    const key = `${String(r.data.month).padStart(2,'0')}/${r.data.year}`
+    const key = String(r.data.month).padStart(2,'0') + '/' + r.data.year
     if (!evolMap[key]) evolMap[key] = { mes: key, total: 0, clientes: new Set() }
     evolMap[key].total += r.total
     evolMap[key].clientes.add(r.nome)
@@ -99,20 +98,18 @@ export async function getClientes(inicio, fim) {
     .sort((a, b) => a.mes.localeCompare(b.mes))
     .map(r => ({ mes: r.mes, total: r.total, clientes: r.clientes.size }))
 
-  // Faixas de gasto (histórico completo)
   const faixasDef = [
-    { faixa: 'Até R$200',         min: 0,    max: 200   },
-    { faixa: 'R$201–R$500',       min: 201,  max: 500   },
-    { faixa: 'R$501–R$1.000',     min: 501,  max: 1000  },
-    { faixa: 'R$1.001–R$5.000',   min: 1001, max: 5000  },
-    { faixa: 'Acima de R$5.000',  min: 5001, max: Infinity },
+    { faixa: 'Ate R$200',        min: 0,    max: 200      },
+    { faixa: 'R$201-R$500',      min: 201,  max: 500      },
+    { faixa: 'R$501-R$1.000',    min: 501,  max: 1000     },
+    { faixa: 'R$1.001-R$5.000',  min: 1001, max: 5000     },
+    { faixa: 'Acima R$5.000',    min: 5001, max: Infinity },
   ]
   const faixas = faixasDef.map(f => ({
     faixa: f.faixa,
     count: Object.values(periodoMap).filter(c => c.total >= f.min && c.total <= f.max).length,
   })).filter(f => f.count > 0)
 
-  // Recorrência: quantos clientes compraram 1x, 2x, 3x...
   const recorrMap = {}
   Object.values(periodoMap).forEach(c => {
     const n = Math.min(c.compras, 10)
@@ -121,54 +118,55 @@ export async function getClientes(inicio, fim) {
   })
   const recorrencia = Object.entries(recorrMap)
     .sort(([a], [b]) => parseInt(a) - parseInt(b))
-    .map(([compras, clientes]) => ({ compras: `${compras}x`, clientes }))
+    .map(([compras, clientes]) => ({ compras: compras + 'x', clientes }))
 
   const totalCompras       = Object.values(periodoMap).reduce((s, c) => s + c.total, 0)
   const totalUnicos        = Object.keys(periodoMap).length
   const ticketMedioCliente = totalUnicos > 0 ? totalCompras / totalUnicos : 0
 
-  // Aniversariantes — formato: DD/MM | Nome
-  const hojeAniv = new Date()
-  const mesAtual = hojeAniv.getMonth() + 1
-  const diaAtual = hojeAniv.getDate()
+  // ── Aniversariantes ──────────────────────────────────────────────────────
+  // Formato: Data de Registro | Nome | Dia | Mes (por extenso) | Ano
+  // Mostra apenas: hoje (diasAte === 0) e proximos 7 dias (1-7)
+  const hojeD  = new Date()
+  const hojeMs = new Date(hojeD.getFullYear(), hojeD.getMonth(), hojeD.getDate()).getTime()
 
+  const nomesVistos = new Set()
   const aniversariantes = []
+
   for (const row of rowsAniv) {
-    const col0 = row[0], col1 = row[1]
-    if (!col0 || col0.startsWith('aniversario') || col0.startsWith('Data')) continue
-    const parts = col0.trim().split('/')
-    if (parts.length < 2) continue
-    const dia = parseInt(parts[0])
-    const mes = parseInt(parts[1])
+    const col1 = row[1]  // Nome
+    const col2 = row[2]  // Dia
+    const col3 = row[3]  // Mes por extenso
+    if (!col1) continue
+    const nomeKey = col1.trim().toUpperCase()
+    if (nomeKey === 'NOME' || nomeKey === 'DATA DE REGISTRO') continue
+    if (nomesVistos.has(nomeKey)) continue
+    nomesVistos.add(nomeKey)
+    const dia = parseInt(col2)
+    const mes = MESES_EXT[col3 ? col3.trim().toLowerCase() : ''] ?? 0
     if (!dia || !mes) continue
-    // Calcula dias até o aniversário
-    const anivEsteAno = new Date(hojeAniv.getFullYear(), mes - 1, dia)
-    if (anivEsteAno < new Date(hojeAniv.getFullYear(), hojeAniv.getMonth(), hojeAniv.getDate())) {
-      anivEsteAno.setFullYear(hojeAniv.getFullYear() + 1)
+
+    const anivEsteAno = new Date(hojeD.getFullYear(), mes - 1, dia)
+    if (anivEsteAno.getTime() < hojeMs) {
+      anivEsteAno.setFullYear(hojeD.getFullYear() + 1)
     }
-    const diasAte = Math.ceil((anivEsteAno - hojeAniv) / 86400000)
+    const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
+
+    if (diasAte > 7) continue
+
     aniversariantes.push({
-      nome:    col1?.trim() ?? '',
-      data:    col0.trim(),
-      dia,
-      mes,
-      diasAte,
-      hoje:    dia === diaAtual && mes === mesAtual,
-      esteMes: mes === mesAtual,
+      nome:    col1.trim(),
+      data:    String(dia).padStart(2,'0') + '/' + String(mes).padStart(2,'0'),
+      dia, mes, diasAte,
+      hoje:    diasAte === 0,
+      proximo: diasAte > 0 && diasAte <= 7,
     })
   }
-  // Ordena: hoje primeiro, depois por proximidade
-  // Deduplicação final por nome (garante sem duplicados mesmo se parser falhar)
-  const nomesAniv = new Set()
-  const aniversariantesMes = aniversariantes
-    .filter(a => {
-      if (!a.esteMes) return false
-      const key = a.nome.trim().toUpperCase()
-      if (nomesAniv.has(key)) return false
-      nomesAniv.add(key)
-      return true
-    })
-    .sort((a, b) => a.dia - b.dia)
 
-  return { ranking, inativos, evolucaoMes, faixas, recorrencia, aniversariantes: aniversariantesMes, totalAniversariantes: aniversariantes.length, totalUnicos, totalCompras, ticketMedioCliente }
+  aniversariantes.sort((a, b) => a.diasAte - b.diasAte)
+
+  return {
+    ranking, inativos, evolucaoMes, faixas, recorrencia,
+    aniversariantes, totalUnicos, totalCompras, ticketMedioCliente
+  }
 }
