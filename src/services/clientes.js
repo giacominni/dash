@@ -152,8 +152,7 @@ export async function getClientes(inicio, fim) {
     }
     const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
 
-    if (diasAte > 7) continue
-
+    // Retorna todos — filtro de janela feito no front
     aniversariantes.push({
       nome:    col1.trim(),
       data:    String(dia).padStart(2,'0') + '/' + String(mes).padStart(2,'0'),
