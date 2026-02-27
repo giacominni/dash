@@ -96,3 +96,127 @@
 @media (max-width: 1024px) { .kpiGrid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px)  { .title { font-size: 22px; } .periodFilter { width: 100%; justify-content: center; } .kpiGrid { grid-template-columns: repeat(2, 1fr); } .search { width: 100%; } }
 @media (max-width: 480px)  { .kpiGrid { grid-template-columns: 1fr; } }
+
+/* ── Aniversariantes ───────────────────────────────────────── */
+.anivKpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+
+.anivKpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 1px 6px rgba(232,160,180,0.06);
+}
+
+.anivKpiNum {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--pink-dark);
+  line-height: 1;
+}
+
+.anivKpiLabel {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.anivGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.anivCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: border-color 0.2s;
+}
+
+.anivCard:hover { border-color: var(--border-2); }
+
+.anivHoje {
+  border-color: var(--gold) !important;
+  background: rgba(201,168,76,0.06) !important;
+}
+
+.anivMes { border-color: rgba(232,160,180,0.4); }
+
+.anivAvatar {
+  width: 38px; height: 38px;
+  border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--pink-dark), var(--gold-dark));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--white);
+}
+
+.anivInfo { flex: 1; min-width: 0; }
+
+.anivNome {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--black);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.anivData {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.badgeHoje {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--gold);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeProximo {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(232,160,180,0.2);
+  color: var(--pink-dark);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeFuturo {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .anivKpis { grid-template-columns: repeat(3, 1fr); }
+  .anivGrid  { grid-template-columns: 1fr; }
+}
