@@ -289,10 +289,6 @@ export default function Clientes() {
                 <Gift size={44} strokeWidth={1.2} />
                 <h3>Aniversariantes do mês</h3>
                 <p>Esta aba está pronta e aguardando os dados de aniversário.</p>
-                <p className={styles.anivDica}>
-                  Quando adicionar uma coluna de data de nascimento na planilha de clientes,
-                  é só avisar que conecto aqui automaticamente.
-                </p>
               </div>
             </div>
           )}
@@ -300,4 +296,5 @@ export default function Clientes() {
       )}
     </div>
   )
+
 }
