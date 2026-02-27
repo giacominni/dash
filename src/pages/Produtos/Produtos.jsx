@@ -33,7 +33,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Produtos() {
   const hoje = new Date()
-  const [inicio, setInicio] = useState({ day: 1, month: 1, year: 2023 })
+  const [inicio, setInicio] = useState({ day: 1, month: hoje.getMonth() + 1, year: hoje.getFullYear() })
   const [fim,    setFim]    = useState({ day: hoje.getDate(), month: hoje.getMonth() + 1, year: hoje.getFullYear() })
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
