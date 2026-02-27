@@ -40,6 +40,10 @@ export default function Clientes() {
   const [error,   setError]   = useState(null)
   const [aba,     setAba]     = useState('visao')
   const [search,  setSearch]  = useState('')
+  const [anivDate, setAnivDate] = useState(() => {
+    const h = new Date()
+    return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`
+  })
 
   useEffect(() => {
     setLoading(true)
@@ -283,60 +287,86 @@ export default function Clientes() {
           )}
 
           {/* ── Aniversariantes ──────────────────────────────────────────── */}
-          {aba === 'aniversariantes' && (
-            <>
-              {/* KPI aniversários do mês */}
-              <div className={styles.anivKpis}>
-                <div className={styles.anivKpi}>
-                  <span className={styles.anivKpiNum}>
-                    {(data.aniversariantes ?? []).filter(a => a.hoje || a.proximo).length}
-                  </span>
-                  <span className={styles.anivKpiLabel}>este mês</span>
-                </div>
-                <div className={styles.anivKpi}>
-                  <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
-                    {(data.aniversariantes ?? []).filter(a => a.hoje).length}
-                  </span>
-                  <span className={styles.anivKpiLabel}>hoje</span>
-                </div>
-                <div className={styles.anivKpi}>
-                  <span className={styles.anivKpiNum}>
-                    {(data.aniversariantes ?? []).filter(a => a.proximo).length}
-                  </span>
-                  <span className={styles.anivKpiLabel}>próximos 7 dias</span>
-                </div>
-              </div>
+          {aba === 'aniversariantes' && (() => {
+            const ref = new Date(anivDate + 'T00:00:00')
+            const refMs = ref.getTime()
+            const anivFiltrados = (data.aniversariantes ?? []).filter(a => {
+              const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
+              if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
+              const diff = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
+              return diff >= 0 && diff <= 7
+            }).map(a => {
+              const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
+              if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
+              const diasAte = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
+              return { ...a, diasAte, hoje: diasAte === 0, proximo: diasAte > 0 }
+            }).sort((a, b) => a.diasAte - b.diasAte)
 
-              <div className={styles.card}>
-                <h3 className={styles.cardTitle}>Aniversariantes</h3>
-                {(data.aniversariantes ?? []).length === 0 ? (
-                  <p className={styles.empty}>Nenhum aniversariante encontrado</p>
-                ) : (
-                  <div className={styles.anivGrid}>
-                    {(data.aniversariantes ?? []).map((a, i) => (
-                      <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.proximo ? styles.anivMes : ''}`}>
-                        <div className={styles.anivAvatar}>
-                          {a.nome.substring(0,2).toUpperCase()}
-                        </div>
-                        <div className={styles.anivInfo}>
-                          <p className={styles.anivNome}>{a.nome}</p>
-                          <p className={styles.anivData}>{a.data}</p>
-                        </div>
-                        <div className={styles.anivBadge}>
-                          {a.hoje
-                            ? <span className={styles.badgeHoje}>Hoje!</span>
-                            : a.diasAte <= 7
-                            ? <span className={styles.badgeProximo}>em {a.diasAte}d</span>
-                            : <span className={styles.badgeFuturo}>em {a.diasAte}d</span>
-                          }
-                        </div>
-                      </div>
-                    ))}
+            return (
+              <>
+                {/* Filtro de data */}
+                <div className={styles.anivFilterRow}>
+                  <label className={styles.anivFilterLabel}>Ver aniversariantes a partir de:</label>
+                  <input type="date" className={styles.anivDateInput}
+                    value={anivDate}
+                    onChange={e => setAnivDate(e.target.value)} />
+                  <button className={styles.anivResetBtn}
+                    onClick={() => {
+                      const h = new Date()
+                      setAnivDate(`${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`)
+                    }}>
+                    Hoje
+                  </button>
+                </div>
+
+                <div className={styles.anivKpis}>
+                  <div className={styles.anivKpi}>
+                    <span className={styles.anivKpiNum}>{anivFiltrados.length}</span>
+                    <span className={styles.anivKpiLabel}>nos próximos 7 dias</span>
                   </div>
-                )}
-              </div>
-            </>
-          )}
+                  <div className={styles.anivKpi}>
+                    <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
+                      {anivFiltrados.filter(a => a.hoje).length}
+                    </span>
+                    <span className={styles.anivKpiLabel}>neste dia</span>
+                  </div>
+                  <div className={styles.anivKpi}>
+                    <span className={styles.anivKpiNum}>
+                      {anivFiltrados.filter(a => a.proximo).length}
+                    </span>
+                    <span className={styles.anivKpiLabel}>nos dias seguintes</span>
+                  </div>
+                </div>
+
+                <div className={styles.card}>
+                  <h3 className={styles.cardTitle}>Aniversariantes</h3>
+                  {anivFiltrados.length === 0 ? (
+                    <p className={styles.empty}>Nenhum aniversariante neste período</p>
+                  ) : (
+                    <div className={styles.anivGrid}>
+                      {anivFiltrados.map((a, i) => (
+                        <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.proximo ? styles.anivMes : ''}`}>
+                          <div className={styles.anivAvatar}>
+                            {a.nome.substring(0,2).toUpperCase()}
+                          </div>
+                          <div className={styles.anivInfo}>
+                            <p className={styles.anivNome}>{a.nome}</p>
+                            <p className={styles.anivData}>{a.data}</p>
+                          </div>
+                          <div className={styles.anivBadge}>
+                            {a.hoje
+                              ? <span className={styles.badgeHoje}>Hoje!</span>
+                              : <span className={styles.badgeProximo}>em {a.diasAte}d</span>
+                            }
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+          })()}
         </>
       )}
     </div>
