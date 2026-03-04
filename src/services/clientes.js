@@ -66,6 +66,17 @@ export async function getClientes(inicio, fim) {
 
   const hoje = new Date()
 
+  // Últimos 12 meses para tag VIP
+  const dozeMs = hoje.getTime() - 365 * 86400000
+  const ultimos12Map = {}
+  todos.forEach(r => {
+    const t = new Date(r.data.year, r.data.month - 1, r.data.day).getTime()
+    if (t >= dozeMs) {
+      if (!ultimos12Map[r.nome]) ultimos12Map[r.nome] = 0
+      ultimos12Map[r.nome] += r.total
+    }
+  })
+
   const ranking = Object.entries(periodoMap)
     .sort(([, a], [, b]) => b.total - a.total)
     .map(([nome, v]) => {
@@ -74,6 +85,7 @@ export async function getClientes(inicio, fim) {
         nome, compras: v.compras, total: v.total,
         ticket: v.compras > 0 ? v.total / v.compras : 0,
         ultimaCompra: ult ? formatData({ day: ult.getDate(), month: ult.getMonth() + 1, year: ult.getFullYear() }) : '-',
+        vip: (ultimos12Map[nome] ?? 0) >= 500,
       }
     })
 
