@@ -42,6 +42,8 @@ export default function Clientes() {
   const { isAniversariantes } = useAuth()
   const [aba,     setAba]     = useState(isAniversariantes ? 'aniversariantes' : 'visao')
   const [search,  setSearch]  = useState('')
+  const [anivSoVip,  setAnivSoVip]  = useState(false)
+  const [anivModoMes, setAnivModoMes] = useState(false)  // false=7dias true=mês todo
   const [anivDate, setAnivDate] = useState(() => {
     const h = new Date()
     return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`
@@ -294,11 +296,19 @@ export default function Clientes() {
           {aba === 'aniversariantes' && (() => {
             const ref = new Date(anivDate + 'T00:00:00')
             const refMs = ref.getTime()
+
+            // Janela: mês todo a partir da data, ou 7 dias
+            const janela = anivModoMes
+              ? new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate() - ref.getDate() + 1
+              : 7
+
             const anivFiltrados = (data.aniversariantes ?? []).filter(a => {
               const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
               if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
               const diff = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
-              return diff >= 0 && diff <= 7
+              if (diff < 0 || diff > janela) return false
+              if (anivSoVip && !a.vip) return false
+              return true
             }).map(a => {
               const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
               if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
@@ -306,11 +316,18 @@ export default function Clientes() {
               return { ...a, diasAte, hoje: diasAte === 0, proximo: diasAte > 0 }
             }).sort((a, b) => a.diasAte - b.diasAte)
 
+            const totalVip = (data.aniversariantes ?? []).filter(a => {
+              const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
+              if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
+              const diff = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
+              return diff >= 0 && diff <= janela && a.vip
+            }).length
+
             return (
               <>
-                {/* Filtro de data */}
+                {/* Filtros */}
                 <div className={styles.anivFilterRow}>
-                  <label className={styles.anivFilterLabel}>Ver aniversariantes a partir de:</label>
+                  <label className={styles.anivFilterLabel}>A partir de:</label>
                   <input type="date" className={styles.anivDateInput}
                     value={anivDate}
                     onChange={e => setAnivDate(e.target.value)} />
@@ -321,24 +338,34 @@ export default function Clientes() {
                     }}>
                     Hoje
                   </button>
+                  <button
+                    className={`${styles.anivResetBtn} ${anivModoMes ? styles.anivBtnActive : ''}`}
+                    onClick={() => setAnivModoMes(v => !v)}>
+                    {anivModoMes ? 'Mês todo' : '7 dias'}
+                  </button>
+                  <button
+                    className={`${styles.anivResetBtn} ${anivSoVip ? styles.anivBtnActive : ''}`}
+                    onClick={() => setAnivSoVip(v => !v)}>
+                    {anivSoVip ? 'VIP' : 'Todos'}
+                  </button>
                 </div>
 
                 <div className={styles.anivKpis}>
                   <div className={styles.anivKpi}>
                     <span className={styles.anivKpiNum}>{anivFiltrados.length}</span>
-                    <span className={styles.anivKpiLabel}>nos próximos 7 dias</span>
+                    <span className={styles.anivKpiLabel}>{anivModoMes ? 'no mês' : 'em 7 dias'}</span>
                   </div>
                   <div className={styles.anivKpi}>
                     <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
-                      {anivFiltrados.filter(a => a.hoje).length}
+                      {totalVip}
                     </span>
-                    <span className={styles.anivKpiLabel}>neste dia</span>
+                    <span className={styles.anivKpiLabel}>VIP no período</span>
                   </div>
                   <div className={styles.anivKpi}>
                     <span className={styles.anivKpiNum}>
-                      {anivFiltrados.filter(a => a.proximo).length}
+                      {anivFiltrados.filter(a => a.hoje).length}
                     </span>
-                    <span className={styles.anivKpiLabel}>nos dias seguintes</span>
+                    <span className={styles.anivKpiLabel}>hoje</span>
                   </div>
                 </div>
 
