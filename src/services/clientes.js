@@ -57,6 +57,12 @@ export async function getClientes(inicio, fim) {
       historicoMap[r.nome].ultimaData = t
   })
 
+  // Mapa normalizado para cruzamento (uppercase sem espaços extras)
+  const historicoNorm = {}
+  Object.entries(historicoMap).forEach(([nome, v]) => {
+    historicoNorm[nome.trim().toUpperCase()] = v
+  })
+
   const periodoMap = {}
   periodo.forEach(r => {
     if (!periodoMap[r.nome]) periodoMap[r.nome] = { compras: 0, total: 0 }
@@ -164,10 +170,9 @@ export async function getClientes(inicio, fim) {
     }
     const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
 
-    // Cruza com histórico de compras
+    // Cruza com histórico de compras pelo nome normalizado
     const nomeNorm = col1.trim().toUpperCase()
-    const hist = historicoMap[nomeNorm] || historicoMap[col1.trim()] ||
-      Object.entries(historicoMap).find(([k]) => k.toUpperCase() === nomeNorm)?.[1] || null
+    const hist = historicoNorm[nomeNorm] || null
 
     aniversariantes.push({
       nome:         col1.trim(),
