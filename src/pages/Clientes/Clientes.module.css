@@ -263,3 +263,21 @@
   transition: opacity 0.2s;
 }
 .anivResetBtn:hover { opacity: 0.8; }
+
+.anivStats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+.anivStats span { white-space: nowrap; }
+
+.anivSemCompras {
+  font-size: 11px;
+  color: var(--muted-2);
+  font-style: italic;
+  margin-top: 3px;
+}
