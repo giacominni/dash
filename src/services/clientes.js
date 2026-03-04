@@ -152,13 +152,22 @@ export async function getClientes(inicio, fim) {
     }
     const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
 
-    // Retorna todos — filtro de janela feito no front
+    // Cruza com histórico de compras
+    const nomeNorm = col1.trim().toUpperCase()
+    const hist = historicoMap[nomeNorm] || historicoMap[col1.trim()] ||
+      Object.entries(historicoMap).find(([k]) => k.toUpperCase() === nomeNorm)?.[1] || null
+
     aniversariantes.push({
-      nome:    col1.trim(),
-      data:    String(dia).padStart(2,'0') + '/' + String(mes).padStart(2,'0'),
+      nome:         col1.trim(),
+      data:         String(dia).padStart(2,'0') + '/' + String(mes).padStart(2,'0'),
       dia, mes, diasAte,
-      hoje:    diasAte === 0,
-      proximo: diasAte > 0 && diasAte <= 7,
+      hoje:         diasAte === 0,
+      proximo:      diasAte > 0 && diasAte <= 7,
+      compras:      hist ? hist.compras : 0,
+      totalGasto:   hist ? hist.total   : 0,
+      ultimaCompra: hist?.ultimaData
+        ? formatData({ day: hist.ultimaData.getDate(), month: hist.ultimaData.getMonth() + 1, year: hist.ultimaData.getFullYear() })
+        : null,
     })
   }
 
