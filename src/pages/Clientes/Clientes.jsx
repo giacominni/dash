@@ -354,13 +354,16 @@ export default function Clientes() {
                             {a.nome.substring(0,2).toUpperCase()}
                           </div>
                           <div className={styles.anivInfo}>
-                            <p className={styles.anivNome}>{a.nome}</p>
+                            <div className={styles.anivNomeRow}>
+                              <p className={styles.anivNome}>{a.nome}</p>
+                              {a.vip && <span className={styles.tagVip}>VIP</span>}
+                            </div>
                             <p className={styles.anivData}>{a.data}</p>
                             {a.compras > 0 ? (
                               <div className={styles.anivStats}>
                                 <span>{a.compras} compras</span>
                                 <span>·</span>
-                                <span>{currency(a.totalGasto)}</span>
+                                <span title="últimos 12 meses">{currency(a.totalGasto)} / ano</span>
                                 {a.ultimaCompra && <><span>·</span><span>última {a.ultimaCompra}</span></>}
                               </div>
                             ) : (
