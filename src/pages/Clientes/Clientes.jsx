@@ -1,374 +1,192 @@
-import { useState, useEffect } from 'react'
-import { Calendar, Users, TrendingUp, Clock, Gift, BarChart2 } from 'lucide-react'
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from 'recharts'
-import { getClientes } from '../../services/clientes'
-import { currency } from '../../utils/format'
-import styles from './Clientes.module.css'
+import { fetchSheet, parseBRL, parseDate, isDateRow } from './sheets.js'
 
-const toInputDate = (d) =>
-  `${d.year}-${String(d.month).padStart(2,'0')}-${String(d.day).padStart(2,'0')}`
-const fromInputDate = (str) => {
-  const [year, month, day] = str.split('-').map(Number)
-  return { day, month, year }
+const GID_CLIENTES     = import.meta.env.VITE_GID_CLIENTES
+const GID_ANIVERSARIOS = import.meta.env.VITE_GID_ANIVERSARIOS
+
+function parseClientesRows(rows) {
+  const result = []
+  for (const row of rows) {
+    const col0 = row[0]
+    if (!col0 || col0.startsWith('Cliente') || col0.startsWith('Total')) continue
+    if (col0.toLowerCase().includes('consumidor final')) continue
+    let data = null, totalCol = 3
+    if (row[2] && isDateRow(row[2]))      { data = parseDate(row[2]); totalCol = 3  }
+    else if (row[3] && isDateRow(row[3])) { data = parseDate(row[3]); totalCol = 10 }
+    if (!data) continue
+    result.push({ nome: col0, venda: row[1], data, total: parseBRL(row[totalCol]) })
+  }
+  return result
 }
 
-const COLORS_PIE = ['#C9A84C','#E8A0B4','#C97090','#A0822A','#9A8080']
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div className={styles.tooltip}>
-      <p className={styles.tooltipLabel}>{label}</p>
-      {payload.map(p => (
-        <p key={p.name} className={styles.tooltipValue} style={{ color: p.color }}>
-          {typeof p.value === 'number' && p.value > 100 ? currency(p.value) : p.value}
-        </p>
-      ))}
-    </div>
-  )
+function porPeriodo(arr, inicio, fim) {
+  const toMs = (d) => new Date(d.year, d.month - 1, d.day).getTime()
+  const ini = toMs(inicio), end = toMs(fim)
+  return arr.filter(r => { const t = toMs(r.data); return t >= ini && t <= end })
 }
 
-export default function Clientes() {
-  const hoje  = new Date()
-  const [inicio, setInicio] = useState({ day: 1, month: hoje.getMonth() + 1, year: hoje.getFullYear() })
-  const [fim,    setFim]    = useState({ day: hoje.getDate(), month: hoje.getMonth() + 1, year: hoje.getFullYear() })
-  const [data,    setData]    = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState(null)
-  const [aba,     setAba]     = useState('visao')
-  const [search,  setSearch]  = useState('')
-  const [anivDate, setAnivDate] = useState(() => {
-    const h = new Date()
-    return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`
+function formatData(d) {
+  return String(d.day).padStart(2,'0') + '/' + String(d.month).padStart(2,'0') + '/' + d.year
+}
+
+const MESES_EXT = {
+  'janeiro':1,'fevereiro':2,'março':3,'abril':4,'maio':5,'junho':6,
+  'julho':7,'agosto':8,'setembro':9,'outubro':10,'novembro':11,'dezembro':12
+}
+
+export async function getClientes(inicio, fim) {
+  const [rows, rowsAniv] = await Promise.all([
+    fetchSheet(GID_CLIENTES),
+    fetchSheet(GID_ANIVERSARIOS),
+  ])
+  const todos = parseClientesRows(rows)
+
+  if (todos.length === 0) {
+    return { ranking: [], inativos: [], evolucaoMes: [], faixas: [], recorrencia: [],
+             aniversariantes: [], totalUnicos: 0, totalCompras: 0, ticketMedioCliente: 0 }
+  }
+
+  const periodo = porPeriodo(todos, inicio, fim)
+
+  const historicoMap = {}
+  todos.forEach(r => {
+    if (!historicoMap[r.nome]) historicoMap[r.nome] = { compras: 0, total: 0, ultimaData: null }
+    historicoMap[r.nome].compras++
+    historicoMap[r.nome].total += r.total
+    const t = new Date(r.data.year, r.data.month - 1, r.data.day)
+    if (!historicoMap[r.nome].ultimaData || t > historicoMap[r.nome].ultimaData)
+      historicoMap[r.nome].ultimaData = t
   })
 
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    getClientes(inicio, fim)
-      .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [inicio, fim])
+  const periodoMap = {}
+  periodo.forEach(r => {
+    if (!periodoMap[r.nome]) periodoMap[r.nome] = { compras: 0, total: 0 }
+    periodoMap[r.nome].compras++
+    periodoMap[r.nome].total += r.total
+  })
 
-  const rankingFiltrado  = (data?.ranking  ?? []).filter(c =>
-    search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
-  const inativosFiltrado = (data?.inativos ?? []).filter(c =>
-    search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
+  const hoje = new Date()
 
-  return (
-    <div className={styles.page}>
+  // Últimos 12 meses para tag VIP
+  const dozeMs = hoje.getTime() - 365 * 86400000
+  const ultimos12Map = {}
+  todos.forEach(r => {
+    const t = new Date(r.data.year, r.data.month - 1, r.data.day).getTime()
+    if (t >= dozeMs) {
+      if (!ultimos12Map[r.nome]) ultimos12Map[r.nome] = 0
+      ultimos12Map[r.nome] += r.total
+    }
+  })
 
-      <div className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>Relacionamento</p>
-          <h2 className={styles.title}>Clientes</h2>
-        </div>
-        <div className={styles.periodFilter}>
-          <Calendar size={14} />
-          <input type="date" className={styles.dateInput}
-            value={toInputDate(inicio)} onChange={e => setInicio(fromInputDate(e.target.value))} />
-          <span className={styles.dateSep}>até</span>
-          <input type="date" className={styles.dateInput}
-            value={toInputDate(fim)} onChange={e => setFim(fromInputDate(e.target.value))} />
-        </div>
-      </div>
+  const ranking = Object.entries(periodoMap)
+    .sort(([, a], [, b]) => b.total - a.total)
+    .map(([nome, v]) => {
+      const ult = historicoMap[nome]?.ultimaData
+      return {
+        nome, compras: v.compras, total: v.total,
+        ticket: v.compras > 0 ? v.total / v.compras : 0,
+        ultimaCompra: ult ? formatData({ day: ult.getDate(), month: ult.getMonth() + 1, year: ult.getFullYear() }) : '-',
+        vip: (ultimos12Map[nome] ?? 0) >= 500,
+      }
+    })
 
-      {loading && <div className={styles.loading}><div className={styles.spinner} /></div>}
-      {error   && <div className={styles.error}>Erro: {error}</div>}
+  const inativos = Object.entries(historicoMap)
+    .filter(([, c]) => c.ultimaData && (hoje - c.ultimaData) / 86400000 > 60)
+    .sort(([, a], [, b]) => a.ultimaData - b.ultimaData)
+    .map(([nome, c]) => ({
+      nome, compras: c.compras, total: c.total,
+      ticket: c.compras > 0 ? c.total / c.compras : 0,
+      diasSemComprar: Math.floor((hoje - c.ultimaData) / 86400000),
+      ultimaCompra: formatData({ day: c.ultimaData.getDate(), month: c.ultimaData.getMonth() + 1, year: c.ultimaData.getFullYear() }),
+    }))
 
-      {!loading && !error && data && (
-        <>
-          {/* KPIs */}
-          <div className={styles.kpiGrid}>
-            {[
-              { icon: Users,     color: 'var(--gold)',      label: 'Clientes Únicos',         value: data.totalUnicos },
-              { icon: TrendingUp,color: 'var(--pink)',      label: 'Total em Compras',         value: currency(data.totalCompras) },
-              { icon: BarChart2, color: 'var(--pink-dark)', label: 'Ticket Médio por Cliente', value: currency(data.ticketMedioCliente) },
-              { icon: Clock,     color: 'var(--danger)',    label: 'Inativos +60 dias',        value: data.inativos.length },
-            ].map(({ icon: Icon, color, label, value }) => (
-              <div key={label} className={styles.kpi} style={{'--c': color}}>
-                <div className={styles.kpiIcon}><Icon size={15} /></div>
-                <div>
-                  <p className={styles.kpiLabel}>{label}</p>
-                  <p className={styles.kpiValue}>{value}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+  const evolMap = {}
+  periodo.forEach(r => {
+    const key = String(r.data.month).padStart(2,'0') + '/' + r.data.year
+    if (!evolMap[key]) evolMap[key] = { mes: key, total: 0, clientes: new Set() }
+    evolMap[key].total += r.total
+    evolMap[key].clientes.add(r.nome)
+  })
+  const evolucaoMes = Object.values(evolMap)
+    .sort((a, b) => a.mes.localeCompare(b.mes))
+    .map(r => ({ mes: r.mes, total: r.total, clientes: r.clientes.size }))
 
-          {/* Abas */}
-          <div className={styles.tabs}>
-            {[
-              { id: 'visao',          label: 'Visão Geral',          icon: BarChart2   },
-              { id: 'ranking',        label: 'Quem mais compra',     icon: TrendingUp  },
-              { id: 'inativos',       label: 'Sem compras recentes', icon: Clock       },
-              { id: 'aniversariantes',label: 'Aniversariantes',      icon: Gift        },
-            ].map(({ id, label, icon: Icon }) => (
-              <button key={id} className={`${styles.tab} ${aba === id ? styles.tabActive : ''}`}
-                onClick={() => { setAba(id); setSearch('') }}>
-                <Icon size={13} /> {label}
-              </button>
-            ))}
-          </div>
+  const faixasDef = [
+    { faixa: 'Ate R$200',        min: 0,    max: 200      },
+    { faixa: 'R$201-R$500',      min: 201,  max: 500      },
+    { faixa: 'R$501-R$1.000',    min: 501,  max: 1000     },
+    { faixa: 'R$1.001-R$5.000',  min: 1001, max: 5000     },
+    { faixa: 'Acima R$5.000',    min: 5001, max: Infinity },
+  ]
+  const faixas = faixasDef.map(f => ({
+    faixa: f.faixa,
+    count: Object.values(periodoMap).filter(c => c.total >= f.min && c.total <= f.max).length,
+  })).filter(f => f.count > 0)
 
-          {/* ── Visão Geral — gráficos ────────────────────────────────────── */}
-          {aba === 'visao' && (
-            <>
-              <div className={styles.chartsRow}>
-                {/* Top 5 clientes */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Top 5 Clientes</h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={data.ranking.slice(0,5)} layout="vertical"
-                      margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false}
-                        tickFormatter={v => `R$${(v/1000).toFixed(0)}k`} />
-                      <YAxis type="category" dataKey="nome" tick={{ fontSize: 10, fill: 'var(--muted)' }}
-                        axisLine={false} tickLine={false} width={90}
-                        tickFormatter={v => v.split(' ')[0]} />
-                      <Tooltip formatter={(v) => [currency(v), 'Total']} />
-                      <Bar dataKey="total" fill="var(--pink-dark)" radius={[0,4,4,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+  const recorrMap = {}
+  Object.values(periodoMap).forEach(c => {
+    const n = Math.min(c.compras, 10)
+    const key = n === 10 ? '10+' : String(n)
+    recorrMap[key] = (recorrMap[key] ?? 0) + 1
+  })
+  const recorrencia = Object.entries(recorrMap)
+    .sort(([a], [b]) => parseInt(a) - parseInt(b))
+    .map(([compras, clientes]) => ({ compras: compras + 'x', clientes }))
 
-                {/* Distribuição por faixa de valor */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Clientes por Faixa de Gasto</h3>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie data={data.faixas} dataKey="count" nameKey="faixa"
-                        cx="50%" cy="50%" outerRadius={80} innerRadius={45}
-                        paddingAngle={3}>
-                        {data.faixas.map((_, i) => <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]} />)}
-                      </Pie>
-                      <Tooltip formatter={(v, n) => [`${v} clientes`, n]} />
-                      <Legend iconType="circle" iconSize={8}
-                        formatter={(v) => <span style={{ fontSize: 11, color: 'var(--muted)' }}>{v}</span>} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+  const totalCompras       = Object.values(periodoMap).reduce((s, c) => s + c.total, 0)
+  const totalUnicos        = Object.keys(periodoMap).length
+  const ticketMedioCliente = totalUnicos > 0 ? totalCompras / totalUnicos : 0
 
-              <div className={styles.chartsRow}>
-                {/* Recorrência */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Recorrência de Compras</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={data.recorrencia} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                      <XAxis dataKey="compras" tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false}
-                        label={{ value: 'nº de compras', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'var(--muted)' }} />
-                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={30} />
-                      <Tooltip formatter={(v) => [`${v} clientes`, 'Clientes']} />
-                      <Bar dataKey="clientes" fill="var(--gold)" radius={[4,4,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+  // ── Aniversariantes ──────────────────────────────────────────────────────
+  // Formato: Data de Registro | Nome | Dia | Mes (por extenso) | Ano
+  // Mostra apenas: hoje (diasAte === 0) e proximos 7 dias (1-7)
+  const hojeD  = new Date()
+  const hojeMs = new Date(hojeD.getFullYear(), hojeD.getMonth(), hojeD.getDate()).getTime()
 
-                {/* Evolução de compras por mês */}
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Evolução de Compras por Mês</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={data.evolucaoMes} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="cliGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor="var(--pink)" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="var(--pink)" stopOpacity={0}    />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                      <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={48}
-                        tickFormatter={v => `R$${(v/1000).toFixed(0)}k`} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="total" name="Faturamento"
-                        stroke="var(--pink-dark)" strokeWidth={2} fill="url(#cliGrad)" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </>
-          )}
+  const nomesVistos = new Set()
+  const aniversariantes = []
 
-          {/* ── Ranking ──────────────────────────────────────────────────── */}
-          {aba === 'ranking' && (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h3 className={styles.cardTitle}>Clientes que mais compraram</h3>
-                <input placeholder="Buscar cliente..." className={styles.search}
-                  value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead><tr>
-                    <th>#</th><th>Cliente</th>
-                    <th className={styles.right}>Compras</th>
-                    <th className={styles.right}>Total Gasto</th>
-                    <th className={styles.right}>Ticket Médio</th>
-                    <th className={styles.right}>Última Compra</th>
-                  </tr></thead>
-                  <tbody>
-                    {rankingFiltrado.length === 0 && (
-                      <tr><td colSpan={6} className={styles.empty}>Nenhum cliente encontrado</td></tr>
-                    )}
-                    {rankingFiltrado.map((c, i) => (
-                      <tr key={c.nome}>
-                        <td className={styles.rankCell}>
-                          {i < 3 ? <span className={styles.rankTop}>{i + 1}</span> :
-                            <span className={styles.rankNum}>{i + 1}</span>}
-                        </td>
-                        <td>
-                          <div className={styles.clientInfo}>
-                            <div className={styles.avatar}>{c.nome.substring(0,2).toUpperCase()}</div>
-                            <span className={styles.clientName}>{c.nome}</span>
-                          </div>
-                        </td>
-                        <td className={styles.right}>{c.compras}</td>
-                        <td className={`${styles.right} ${styles.bold}`}>{currency(c.total)}</td>
-                        <td className={styles.right}>{currency(c.ticket)}</td>
-                        <td className={`${styles.right} ${styles.mono}`}>{c.ultimaCompra}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+  for (const row of rowsAniv) {
+    const col1 = row[1]  // Nome
+    const col2 = row[2]  // Dia
+    const col3 = row[3]  // Mes por extenso
+    if (!col1) continue
+    const nomeKey = col1.trim().toUpperCase()
+    if (nomeKey === 'NOME' || nomeKey === 'DATA DE REGISTRO') continue
+    if (nomesVistos.has(nomeKey)) continue
+    nomesVistos.add(nomeKey)
+    const dia = parseInt(col2)
+    const mes = MESES_EXT[col3 ? col3.trim().toLowerCase() : ''] ?? 0
+    if (!dia || !mes) continue
 
-          {/* ── Inativos ─────────────────────────────────────────────────── */}
-          {aba === 'inativos' && (
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h3 className={styles.cardTitle}>Clientes sem compra recente</h3>
-                <input placeholder="Buscar cliente..." className={styles.search}
-                  value={search} onChange={e => setSearch(e.target.value)} />
-              </div>
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead><tr>
-                    <th>Cliente</th>
-                    <th className={styles.right}>Última Compra</th>
-                    <th className={styles.right}>Dias sem comprar</th>
-                    <th className={styles.right}>Total Histórico</th>
-                    <th className={styles.right}>Nº Compras</th>
-                  </tr></thead>
-                  <tbody>
-                    {inativosFiltrado.length === 0 && (
-                      <tr><td colSpan={5} className={styles.empty}>Nenhum cliente inativo</td></tr>
-                    )}
-                    {inativosFiltrado.map(c => (
-                      <tr key={c.nome}>
-                        <td>
-                          <div className={styles.clientInfo}>
-                            <div className={styles.avatar}>{c.nome.substring(0,2).toUpperCase()}</div>
-                            <span className={styles.clientName}>{c.nome}</span>
-                          </div>
-                        </td>
-                        <td className={`${styles.right} ${styles.mono}`}>{c.ultimaCompra}</td>
-                        <td className={styles.right}>
-                          <span className={c.diasSemComprar > 90 ? styles.badgeRed : styles.badgeOrange}>
-                            {c.diasSemComprar} dias
-                          </span>
-                        </td>
-                        <td className={`${styles.right} ${styles.bold}`}>{currency(c.total)}</td>
-                        <td className={styles.right}>{c.compras}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+    const anivEsteAno = new Date(hojeD.getFullYear(), mes - 1, dia)
+    if (anivEsteAno.getTime() < hojeMs) {
+      anivEsteAno.setFullYear(hojeD.getFullYear() + 1)
+    }
+    const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
 
-          {/* ── Aniversariantes ──────────────────────────────────────────── */}
-          {aba === 'aniversariantes' && (() => {
-            const ref = new Date(anivDate + 'T00:00:00')
-            const refMs = ref.getTime()
-            const anivFiltrados = (data.aniversariantes ?? []).filter(a => {
-              const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
-              if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
-              const diff = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
-              return diff >= 0 && diff <= 7
-            }).map(a => {
-              const anivEsteAno = new Date(ref.getFullYear(), a.mes - 1, a.dia)
-              if (anivEsteAno.getTime() < refMs) anivEsteAno.setFullYear(ref.getFullYear() + 1)
-              const diasAte = Math.round((anivEsteAno.getTime() - refMs) / 86400000)
-              return { ...a, diasAte, hoje: diasAte === 0, proximo: diasAte > 0 }
-            }).sort((a, b) => a.diasAte - b.diasAte)
+    // Cruza com histórico de compras
+    const nomeNorm = col1.trim().toUpperCase()
+    const hist = historicoMap[nomeNorm] || historicoMap[col1.trim()] ||
+      Object.entries(historicoMap).find(([k]) => k.toUpperCase() === nomeNorm)?.[1] || null
 
-            return (
-              <>
-                {/* Filtro de data */}
-                <div className={styles.anivFilterRow}>
-                  <label className={styles.anivFilterLabel}>Ver aniversariantes a partir de:</label>
-                  <input type="date" className={styles.anivDateInput}
-                    value={anivDate}
-                    onChange={e => setAnivDate(e.target.value)} />
-                  <button className={styles.anivResetBtn}
-                    onClick={() => {
-                      const h = new Date()
-                      setAnivDate(`${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`)
-                    }}>
-                    Hoje
-                  </button>
-                </div>
+    aniversariantes.push({
+      nome:         col1.trim(),
+      data:         String(dia).padStart(2,'0') + '/' + String(mes).padStart(2,'0'),
+      dia, mes, diasAte,
+      hoje:         diasAte === 0,
+      proximo:      diasAte > 0 && diasAte <= 7,
+      compras:      hist ? hist.compras : 0,
+      totalGasto:   hist ? hist.total   : 0,
+      ultimaCompra: hist?.ultimaData
+        ? formatData({ day: hist.ultimaData.getDate(), month: hist.ultimaData.getMonth() + 1, year: hist.ultimaData.getFullYear() })
+        : null,
+    })
+  }
 
-                <div className={styles.anivKpis}>
-                  <div className={styles.anivKpi}>
-                    <span className={styles.anivKpiNum}>{anivFiltrados.length}</span>
-                    <span className={styles.anivKpiLabel}>nos próximos 7 dias</span>
-                  </div>
-                  <div className={styles.anivKpi}>
-                    <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
-                      {anivFiltrados.filter(a => a.hoje).length}
-                    </span>
-                    <span className={styles.anivKpiLabel}>neste dia</span>
-                  </div>
-                  <div className={styles.anivKpi}>
-                    <span className={styles.anivKpiNum}>
-                      {anivFiltrados.filter(a => a.proximo).length}
-                    </span>
-                    <span className={styles.anivKpiLabel}>nos dias seguintes</span>
-                  </div>
-                </div>
+  aniversariantes.sort((a, b) => a.diasAte - b.diasAte)
 
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Aniversariantes</h3>
-                  {anivFiltrados.length === 0 ? (
-                    <p className={styles.empty}>Nenhum aniversariante neste período</p>
-                  ) : (
-                    <div className={styles.anivGrid}>
-                      {anivFiltrados.map((a, i) => (
-                        <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.proximo ? styles.anivMes : ''}`}>
-                          <div className={styles.anivAvatar}>
-                            {a.nome.substring(0,2).toUpperCase()}
-                          </div>
-                          <div className={styles.anivInfo}>
-                            <p className={styles.anivNome}>{a.nome}</p>
-                            <p className={styles.anivData}>{a.data}</p>
-                          </div>
-                          <div className={styles.anivBadge}>
-                            {a.hoje
-                              ? <span className={styles.badgeHoje}>Hoje!</span>
-                              : <span className={styles.badgeProximo}>em {a.diasAte}d</span>
-                            }
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )
-          })()}
-        </>
-      )}
-    </div>
-  )
+  return {
+    ranking, inativos, evolucaoMes, faixas, recorrencia,
+    aniversariantes, totalUnicos, totalCompras, ticketMedioCliente
+  }
 }
