@@ -109,7 +109,7 @@ export default function Clientes() {
               { id: 'ranking',        label: 'Quem mais compra',     icon: TrendingUp  },
               { id: 'inativos',       label: 'Sem compras recentes', icon: Clock       },
               { id: 'aniversariantes',label: 'Aniversariantes',      icon: Gift        },
-            ].filter(a => isAniversariantes ? a.id === 'aniversariantes' : true)
+            ].filter(a => isAniversariantes ? (a.id === 'aniversariantes' || a.id === 'inativos') : true)
             .map(({ id, label, icon: Icon }) => (
               <button key={id} className={`${styles.tab} ${aba === id ? styles.tabActive : ''}`}
                 onClick={() => { setAba(id); setSearch('') }}>
