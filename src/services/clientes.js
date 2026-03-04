@@ -72,14 +72,15 @@ export async function getClientes(inicio, fim) {
 
   const hoje = new Date()
 
-  // Últimos 12 meses para tag VIP
+  // Últimos 12 meses para tag VIP e aniversariantes (chave normalizada)
   const dozeMs = hoje.getTime() - 365 * 86400000
   const ultimos12Map = {}
   todos.forEach(r => {
     const t = new Date(r.data.year, r.data.month - 1, r.data.day).getTime()
     if (t >= dozeMs) {
-      if (!ultimos12Map[r.nome]) ultimos12Map[r.nome] = 0
-      ultimos12Map[r.nome] += r.total
+      const k = r.nome.trim().toUpperCase()
+      if (!ultimos12Map[k]) ultimos12Map[k] = 0
+      ultimos12Map[k] += r.total
     }
   })
 
@@ -91,7 +92,7 @@ export async function getClientes(inicio, fim) {
         nome, compras: v.compras, total: v.total,
         ticket: v.compras > 0 ? v.total / v.compras : 0,
         ultimaCompra: ult ? formatData({ day: ult.getDate(), month: ult.getMonth() + 1, year: ult.getFullYear() }) : '-',
-        vip: (ultimos12Map[nome] ?? 0) >= 500,
+        vip: (ultimos12Map[nome.trim().toUpperCase()] ?? 0) >= 500,
       }
     })
 
@@ -170,9 +171,10 @@ export async function getClientes(inicio, fim) {
     }
     const diasAte = Math.round((anivEsteAno.getTime() - hojeMs) / 86400000)
 
-    // Cruza com histórico de compras pelo nome normalizado
-    const nomeNorm = col1.trim().toUpperCase()
-    const hist = historicoNorm[nomeNorm] || null
+    // Cruza com histórico — total dos últimos 12 meses, compras e última do histórico completo
+    const nomeNorm   = col1.trim().toUpperCase()
+    const hist       = historicoNorm[nomeNorm] || null
+    const totalAnual = ultimos12Map[nomeNorm] ?? 0
 
     aniversariantes.push({
       nome:         col1.trim(),
@@ -181,7 +183,8 @@ export async function getClientes(inicio, fim) {
       hoje:         diasAte === 0,
       proximo:      diasAte > 0 && diasAte <= 7,
       compras:      hist ? hist.compras : 0,
-      totalGasto:   hist ? hist.total   : 0,
+      totalGasto:   totalAnual,
+      vip:          totalAnual >= 500,
       ultimaCompra: hist?.ultimaData
         ? formatData({ day: hist.ultimaData.getDate(), month: hist.ultimaData.getMonth() + 1, year: hist.ultimaData.getFullYear() })
         : null,
