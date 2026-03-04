@@ -85,7 +85,7 @@ export default function Clientes() {
       {!loading && !error && data && (
         <>
           {/* KPIs */}
-          {!isAniversariantes && <div className={styles.kpiGrid}>
+          {!isAniversariantes && (<div className={styles.kpiGrid}>
             {[
               { icon: Users,     color: 'var(--gold)',      label: 'Clientes Únicos',         value: data.totalUnicos },
               { icon: TrendingUp,color: 'var(--pink)',      label: 'Total em Compras',         value: currency(data.totalCompras) },
@@ -100,7 +100,7 @@ export default function Clientes() {
                 </div>
               </div>
             ))}
-          </div>
+          </div>)}
 
           {/* Abas */}
           <div className={styles.tabs}>
