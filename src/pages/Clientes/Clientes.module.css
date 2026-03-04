@@ -301,3 +301,9 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+
+.anivBtnActive {
+  background: var(--gold) !important;
+  border-color: var(--gold-dark) !important;
+  color: var(--white) !important;
+}
