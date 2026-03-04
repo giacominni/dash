@@ -356,6 +356,16 @@ export default function Clientes() {
                           <div className={styles.anivInfo}>
                             <p className={styles.anivNome}>{a.nome}</p>
                             <p className={styles.anivData}>{a.data}</p>
+                            {a.compras > 0 ? (
+                              <div className={styles.anivStats}>
+                                <span>{a.compras} compras</span>
+                                <span>·</span>
+                                <span>{currency(a.totalGasto)}</span>
+                                {a.ultimaCompra && <><span>·</span><span>última {a.ultimaCompra}</span></>}
+                              </div>
+                            ) : (
+                              <p className={styles.anivSemCompras}>sem compras registradas</p>
+                            )}
                           </div>
                           <div className={styles.anivBadge}>
                             {a.hoje
