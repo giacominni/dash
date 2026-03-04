@@ -294,3 +294,10 @@
   margin-left: 6px;
   vertical-align: middle;
 }
+
+.anivNomeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
