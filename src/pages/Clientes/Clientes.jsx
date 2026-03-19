@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Users, TrendingUp, Clock, Gift, BarChart2 } from 'lucide-react'
+import { Calendar, Users, TrendingUp, Clock, Gift, BarChart2, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -32,6 +32,21 @@ const CustomTooltip = ({ active, payload, label }) => {
   )
 }
 
+function SortTh({ label, col, sortCol, sortDir, onSort, className }) {
+  const active = sortCol === col
+  return (
+    <th className={`${className ?? ''} ${styles.sortTh}`} onClick={() => onSort(col)}>
+      <span className={styles.sortThInner}>
+        {label}
+        <span className={styles.sortIcons}>
+          <ChevronUp size={10} style={{ opacity: active && sortDir === 'asc' ? 1 : 0.25 }} />
+          <ChevronDown size={10} style={{ opacity: active && sortDir === 'desc' ? 1 : 0.25 }} />
+        </span>
+      </span>
+    </th>
+  )
+}
+
 export default function Clientes() {
   const hoje  = new Date()
   const [inicio, setInicio] = useState({ day: 1, month: hoje.getMonth() + 1, year: hoje.getFullYear() })
@@ -42,12 +57,25 @@ export default function Clientes() {
   const { isAniversariantes } = useAuth()
   const [aba,     setAba]     = useState(isAniversariantes ? 'aniversariantes' : 'visao')
   const [search,  setSearch]  = useState('')
-  const [anivSoVip,  setAnivSoVip]  = useState(false)
-  const [anivModoMes, setAnivModoMes] = useState(false)  // false=7dias true=mês todo
+  const [anivSoVip,   setAnivSoVip]   = useState(false)
+  const [anivModoMes, setAnivModoMes] = useState(false)
   const [anivDate, setAnivDate] = useState(() => {
     const h = new Date()
     return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`
   })
+
+  // Ordenação da tabela de inativos
+  const [sortCol, setSortCol] = useState('diasSemComprar')
+  const [sortDir, setSortDir] = useState('desc')
+
+  const handleSort = (col) => {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('desc')
+    }
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -58,10 +86,18 @@ export default function Clientes() {
       .finally(() => setLoading(false))
   }, [inicio, fim])
 
-  const rankingFiltrado  = (data?.ranking  ?? []).filter(c =>
+  const rankingFiltrado = (data?.ranking ?? []).filter(c =>
     search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
-  const inativosFiltrado = (data?.inativos ?? []).filter(c =>
-    search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
+
+  const inativosFiltrado = (data?.inativos ?? [])
+    .filter(c => search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const av = a[sortCol], bv = b[sortCol]
+      if (typeof av === 'number') return sortDir === 'asc' ? av - bv : bv - av
+      return sortDir === 'asc'
+        ? String(av).localeCompare(String(bv))
+        : String(bv).localeCompare(String(av))
+    })
 
   return (
     <div className={styles.page}>
@@ -120,11 +156,10 @@ export default function Clientes() {
             ))}
           </div>
 
-          {/* ── Visão Geral — gráficos ────────────────────────────────────── */}
+          {/* ── Visão Geral ───────────────────────────────────────────────── */}
           {aba === 'visao' && (
             <>
               <div className={styles.chartsRow}>
-                {/* Top 5 clientes */}
                 <div className={styles.card}>
                   <h3 className={styles.cardTitle}>Top 5 Clientes</h3>
                   <ResponsiveContainer width="100%" height={220}>
@@ -142,14 +177,12 @@ export default function Clientes() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Distribuição por faixa de valor */}
                 <div className={styles.card}>
                   <h3 className={styles.cardTitle}>Clientes por Faixa de Gasto</h3>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie data={data.faixas} dataKey="count" nameKey="faixa"
-                        cx="50%" cy="50%" outerRadius={80} innerRadius={45}
-                        paddingAngle={3}>
+                        cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={3}>
                         {data.faixas.map((_, i) => <Cell key={i} fill={COLORS_PIE[i % COLORS_PIE.length]} />)}
                       </Pie>
                       <Tooltip formatter={(v, n) => [`${v} clientes`, n]} />
@@ -161,7 +194,6 @@ export default function Clientes() {
               </div>
 
               <div className={styles.chartsRow}>
-                {/* Recorrência */}
                 <div className={styles.card}>
                   <h3 className={styles.cardTitle}>Recorrência de Compras</h3>
                   <ResponsiveContainer width="100%" height={200}>
@@ -176,7 +208,6 @@ export default function Clientes() {
                   </ResponsiveContainer>
                 </div>
 
-                {/* Evolução de compras por mês */}
                 <div className={styles.card}>
                   <h3 className={styles.cardTitle}>Evolução de Compras por Mês</h3>
                   <ResponsiveContainer width="100%" height={200}>
@@ -260,9 +291,9 @@ export default function Clientes() {
                   <thead><tr>
                     <th>Cliente</th>
                     <th className={styles.right}>Última Compra</th>
-                    <th className={styles.right}>Dias sem comprar</th>
-                    <th className={styles.right}>Total Histórico</th>
-                    <th className={styles.right}>Nº Compras</th>
+                    <SortTh label="Dias sem comprar" col="diasSemComprar" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className={styles.right} />
+                    <SortTh label="Total Histórico"  col="total"         sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className={styles.right} />
+                    <SortTh label="Nº Compras"       col="compras"       sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className={styles.right} />
                   </tr></thead>
                   <tbody>
                     {inativosFiltrado.length === 0 && (
@@ -297,7 +328,6 @@ export default function Clientes() {
             const ref = new Date(anivDate + 'T00:00:00')
             const refMs = ref.getTime()
 
-            // Janela: mês todo a partir da data, ou 7 dias
             const janela = anivModoMes
               ? new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate() - ref.getDate() + 1
               : 7
@@ -325,12 +355,10 @@ export default function Clientes() {
 
             return (
               <>
-                {/* Filtros */}
                 <div className={styles.anivFilterRow}>
                   <label className={styles.anivFilterLabel}>A partir de:</label>
                   <input type="date" className={styles.anivDateInput}
-                    value={anivDate}
-                    onChange={e => setAnivDate(e.target.value)} />
+                    value={anivDate} onChange={e => setAnivDate(e.target.value)} />
                   <button className={styles.anivResetBtn}
                     onClick={() => {
                       const h = new Date()
@@ -338,13 +366,11 @@ export default function Clientes() {
                     }}>
                     Hoje
                   </button>
-                  <button
-                    className={`${styles.anivResetBtn} ${anivModoMes ? styles.anivBtnActive : ''}`}
+                  <button className={`${styles.anivResetBtn} ${anivModoMes ? styles.anivBtnActive : ''}`}
                     onClick={() => setAnivModoMes(v => !v)}>
                     {anivModoMes ? 'Mês todo' : '7 dias'}
                   </button>
-                  <button
-                    className={`${styles.anivResetBtn} ${anivSoVip ? styles.anivBtnActive : ''}`}
+                  <button className={`${styles.anivResetBtn} ${anivSoVip ? styles.anivBtnActive : ''}`}
                     onClick={() => setAnivSoVip(v => !v)}>
                     {anivSoVip ? 'VIP' : 'Todos'}
                   </button>
@@ -356,15 +382,11 @@ export default function Clientes() {
                     <span className={styles.anivKpiLabel}>{anivModoMes ? 'no mês' : 'em 7 dias'}</span>
                   </div>
                   <div className={styles.anivKpi}>
-                    <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>
-                      {totalVip}
-                    </span>
+                    <span className={styles.anivKpiNum} style={{color:'var(--gold)'}}>{totalVip}</span>
                     <span className={styles.anivKpiLabel}>VIP no período</span>
                   </div>
                   <div className={styles.anivKpi}>
-                    <span className={styles.anivKpiNum}>
-                      {anivFiltrados.filter(a => a.hoje).length}
-                    </span>
+                    <span className={styles.anivKpiNum}>{anivFiltrados.filter(a => a.hoje).length}</span>
                     <span className={styles.anivKpiLabel}>hoje</span>
                   </div>
                 </div>
@@ -377,9 +399,7 @@ export default function Clientes() {
                     <div className={styles.anivGrid}>
                       {anivFiltrados.map((a, i) => (
                         <div key={i} className={`${styles.anivCard} ${a.hoje ? styles.anivHoje : ''} ${a.proximo ? styles.anivMes : ''}`}>
-                          <div className={styles.anivAvatar}>
-                            {a.nome.substring(0,2).toUpperCase()}
-                          </div>
+                          <div className={styles.anivAvatar}>{a.nome.substring(0,2).toUpperCase()}</div>
                           <div className={styles.anivInfo}>
                             <div className={styles.anivNomeRow}>
                               <p className={styles.anivNome}>{a.nome}</p>
