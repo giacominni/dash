@@ -307,3 +307,13 @@
   border-color: var(--gold-dark) !important;
   color: var(--white) !important;
 }
+# placeholder - will copy from source
+
+.sortTh { cursor: pointer; user-select: none; }
+.sortTh:hover { color: var(--black); }
+.sortThInner { display: inline-flex; align-items: center; gap: 3px; }
+.sortIcons { display: inline-flex; flex-direction: column; gap: 0px; line-height: 1; }
+.sortTh { cursor: pointer; user-select: none; }
+.sortTh:hover { color: var(--black); }
+.sortThInner { display: inline-flex; align-items: center; gap: 3px; }
+.sortIcons { display: inline-flex; flex-direction: column; gap: 0px; line-height: 1; }
