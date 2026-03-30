@@ -307,7 +307,6 @@
   border-color: var(--gold-dark) !important;
   color: var(--white) !important;
 }
-# placeholder - will copy from source
 
 .sortTh { cursor: pointer; user-select: none; }
 .sortTh:hover { color: var(--black); }
