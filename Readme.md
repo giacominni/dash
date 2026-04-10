@@ -6,11 +6,11 @@ Dashboard financeiro e de relacionamento para gestão de vendas, clientes e prod
 ![license](https://img.shields.io/badge/license-MIT-4d1e24?style=flat-square&labelColor=4d1e24)
 ![version](https://img.shields.io/badge/version-1.0.0-4d1e24?style=flat-square&labelColor=4d1e24)
 
-![React](https://img.shields.io/badge/React-4d1e24?style=for-the-badge&logo=react&logoColor=c97c85)
-![TypeScript](https://img.shields.io/badge/TypeScript-4d1e24?style=for-the-badge&logo=typescript&logoColor=c97c85)
-![Firebase](https://img.shields.io/badge/Firebase-4d1e24?style=for-the-badge&logo=firebase&logoColor=7a9e3a)
-![Google Sheets](https://img.shields.io/badge/Google_Sheets-4d1e24?style=for-the-badge&logo=googlesheets&logoColor=7a9e3a)
-![Vercel](https://img.shields.io/badge/Vercel-4d1e24?style=for-the-badge&logo=vercel&logoColor=8b949e)
+![React](https://img.shields.io/badge/React-4d1e24?style=for-the-badge&logo=react&logoColor=FFFFFF)
+![TypeScript](https://img.shields.io/badge/TypeScript-4d1e24?style=for-the-badge&logo=typescript&logoColor=FFFFFF)
+![Firebase](https://img.shields.io/badge/Firebase-4d1e24?style=for-the-badge&logo=firebase&logoColor=FFFFFF)
+![Google Sheets](https://img.shields.io/badge/Google_Sheets-4d1e24?style=for-the-badge&logo=googlesheets&logoColor=FFFFFF)
+![Vercel](https://img.shields.io/badge/Vercel-4d1e24?style=for-the-badge&logo=vercel&logoColor=FFFFFF)
 
 ---
 
