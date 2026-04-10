@@ -2,9 +2,9 @@
 
 Dashboard financeiro e de relacionamento para gestão de vendas, clientes e produtos — integrado ao Google Sheets como banco de dados.
 
-![deploy](https://img.shields.io/badge/deploy-vercel-FFFFFF?style=flat-square&labelColor=1a2e0a&logo=vercel&logoColor=4d1e24)
-![license](https://img.shields.io/badge/license-MIT-FFFFFF?style=flat-square&labelColor=4d1e24)
-![version](https://img.shields.io/badge/version-1.0.0-FFFFFF?style=flat-square&labelColor=4d1e24)
+![deploy](https://img.shields.io/badge/deploy-vercel-4d1e24?style=flat-square&labelColor=FFFFFF&logo=vercel&logoColor=4d1e24)
+![license](https://img.shields.io/badge/license-MIT-4d1e24?style=flat-square&labelColor=FFFFFF)
+![version](https://img.shields.io/badge/version-1.0.0-4d1e24?style=flat-square&labelColor=FFFFFF)
 
 ![React](https://img.shields.io/badge/React-4d1e24?style=for-the-badge&logo=react&logoColor=c97c85)
 ![TypeScript](https://img.shields.io/badge/TypeScript-4d1e24?style=for-the-badge&logo=typescript&logoColor=c97c85)
