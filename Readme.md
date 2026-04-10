@@ -125,4 +125,4 @@ MIT License — veja [LICENSE](./LICENSE) para detalhes.
 
 ---
 
-<p align="center">feito por <a href="https://github.com/giacominni">giacominni</a> · Sul Mídia Software</p>
+<p align="center">feito por <a href="https://github.com/giacominni">giacominni</a> · Rafael Carneiro</p>
