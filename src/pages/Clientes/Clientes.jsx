@@ -86,8 +86,13 @@ export default function Clientes() {
       .finally(() => setLoading(false))
   }, [inicio, fim])
 
-  const rankingFiltrado = (data?.ranking ?? []).filter(c =>
-    search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
+  const OCULTAR = ['moss', 'consumidor final']
+  
+  const rankingFiltrado = (data?.ranking ?? []).filter(c => {
+    const nome = c.nome.toLowerCase()
+    if (OCULTAR.some(p => nome.includes(p))) return false
+    return search === '' || nome.includes(search.toLowerCase())
+})
 
   const inativosFiltrado = (data?.inativos ?? [])
     .filter(c => search === '' || c.nome.toLowerCase().includes(search.toLowerCase()))
