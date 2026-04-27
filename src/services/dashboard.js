@@ -237,15 +237,17 @@ export async function getDashboard(inicio, fim) {
     .map(([name, qty], i) => ({ rank: i + 1, name, qty }))
 
   // ── Top clientes ───────────────────────────────────────────────────────────
+  const OCULTAR_CLIENTES = ['moss', 'consumidor final']
   const clientMap = {}
   cliPeriodo.forEach(c => { clientMap[c.nome] = (clientMap[c.nome] ?? 0) + c.total })
   const topClients = Object.entries(clientMap)
+    .filter(([nome]) => !OCULTAR_CLIENTES.some(p => nome.toLowerCase().includes(p)))
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([nome, total], i) => ({
-      rank: i + 1, initials: nome.substring(0, 2).toUpperCase(),
-      name: nome, sub: 'Cliente', value: total,
-    }))
+    rank: i + 1, initials: nome.substring(0, 2).toUpperCase(),
+    name: nome, sub: 'Cliente', value: total,
+  }))
 
   return {
     kpis: {
