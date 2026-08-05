@@ -48,9 +48,11 @@ function SortTh({ label, col, sortCol, sortDir, onSort, className }) {
 }
 
 export default function Clientes() {
-  const hoje  = new Date()
-  const [inicio, setInicio] = useState({ day: 1, month: hoje.getMonth() + 1, year: hoje.getFullYear() })
-  const [fim,    setFim]    = useState({ day: hoje.getDate(), month: hoje.getMonth() + 1, year: hoje.getFullYear() })
+  const hoje = new Date()
+  const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
+  const ultimoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth(), 0).getDate()
+  const [inicio, setInicio] = useState({ day: 1, month: mesPassado.getMonth() + 1, year: mesPassado.getFullYear() })
+  const [fim,    setFim]    = useState({ day: ultimoDiaMesPassado, month: mesPassado.getMonth() + 1, year: mesPassado.getFullYear() })
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
